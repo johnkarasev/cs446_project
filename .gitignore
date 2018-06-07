@@ -4,3 +4,5 @@ filteredTweets.json
 .DS_Store
 .idea
 __pycache_
+vocab.dat
+data

@@ -63,9 +63,7 @@ tweetCounter = 0
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 #intial reading and preprocessing
 #tweets,sentiments = read_preprocess('training.1600000.processed.noemoticon.csv')
-#save(tweets,"tweets.json",sentiments,"sentiments.json") 
-tweets = []
-sentiments = []
+#save(tweets,"tweets.json",sentiments,"sentiments.json")
 with open('tweets.json') as f:
     tweets = json.load(f)
 with open('sentiments.json') as f:

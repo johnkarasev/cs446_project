@@ -45,8 +45,6 @@ class Word2Vec(object):
         word_to_int = {}
         for word, _ in count:
             word_to_int[word] = len(word_to_int)
-        with open("vocab.json", "w") as f:
-            json.dump(word_to_int, f, indent=2)
         return word_to_int
 
     @staticmethod
@@ -99,8 +97,7 @@ class Word2Vec(object):
         return optimizer, loss, x, y, sess, Embedding
 
     def train(self, epochs):
-        with open("vocab.json") as fp:
-            vocab = json.load(fp)
+        vocab = np.load("./data/vocab.npy").item()
         # x_train, x_test, y_train, y_test = train_test_split(self.input, self.target)
         print(type(self.input))
         num_batches = self.input.shape[0] // self.batch_size
@@ -122,8 +119,8 @@ class Word2Vec(object):
                     print("STEP " + str(i) + " of " + str(num_batches) + " LOSS: " + str(l))
                 if l < 5.0 and i > 100000:
                     embed = self.embed[:].eval(session=self.sess)
-                    embed.tofile("vectorspace" + str(embed.shape[0]) + "x" + str(embed.shape[1]) + ".np")
+                    embed.tofile("./data/vectorspace" + str(embed.shape[0]) + "x" + str(embed.shape[1]) + ".np")
                     return
         embed = self.embed[:].eval(session=self.sess)
-        embed.tofile("vectorspace" + str(embed.shape[0]) + "x" + str(embed.shape[1]) + ".np")
+        embed.tofile("./data/vectorspace" + str(embed.shape[0]) + "x" + str(embed.shape[1]) + ".np")
         save_path = saver.save(self.sess, os.path.join("tf_log", self.savefile))
