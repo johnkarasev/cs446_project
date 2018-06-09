@@ -6,7 +6,9 @@ Created on Sat Jun  2 12:51:26 2018
 """
 import numpy as np
 import tensorflow as tf
-#import matplotlib.pylot as plt
+from random import randint
+import datetime
+import tensorboard
 import csv
 import re
 import json
@@ -32,19 +34,17 @@ def read_preprocess(file):
         reader = csv.reader(csvfile, delimiter = ',', quotechar = '"')
         for row in reader:
             tweets.append(preprocess_tweet(row[5]))
-            if row[0] == "0" or row[0] == "1":
+            if row[0] == "0":
                 sentiments.append(0)
-            elif row[0] == "2":
-                sentiments.append(1)
             else:
-                sentiments.append(2)
+                sentiments.append(1)
         return tweets, sentiments
 
 def save(tweets,filename1,sentiments,filename2):
     with open(filename1, 'w') as of:
         json.dump(tweets, of)
     with open(filename2, 'w') as of:
-        json.dump(tweets, of)
+        json.dump(sentiments, of)
   
 #neat functionality but very slow progress bar      
 def progress(count, total, suffix=''):
@@ -56,25 +56,65 @@ def progress(count, total, suffix=''):
     sys.stdout.flush()
     if count == total:
         print("")
-  
+
+def getTrainBatch():
+    labels = []
+    arr = np.zeros([batchSize, maxTweetLength])
+    for i in range(batchSize):
+        if (i % 2 == 0): 
+            num = randint(1,533333)
+            labels.append([1,0])
+        else:
+            num = randint(1066667,1600000)
+            labels.append([0,1])
+        arr[i] = ids[num-1:num]
+    return arr, labels
+
+def getTestBatch():
+    labels = []
+    arr = np.zeros([batchSize, maxTweetLength])
+    for i in range(batchSize):
+        num = randint(533334,1066667)
+        if (num < 800000):
+            labels.append([1,0])
+        else:
+            labels.append([0,1])
+        arr[i] = ids[num-1:num]
+    return arr, labels
+    
+#program Variables
 numTweets = 1600000
 maxTweetLength = 35
 tweetCounter = 0
+batchSize = 24
+lstmUnits = 64
+numClasses = 2
+iterations = 100000
+numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
+
 #intial reading and preprocessing
 #tweets,sentiments = read_preprocess('training.1600000.processed.noemoticon.csv')
-#save(tweets,"tweets.json",sentiments,"sentiments.json")
+#save(tweets,"tweets.json",sentiments,"sentiments.json") 
+
+#reading in once preprocessed once
+tweets = []
+#sentiments = []
 with open('tweets.json') as f:
     tweets = json.load(f)
-with open('sentiments.json') as f:
-    sentiments = json.load(f)
+#with open('sentiments.json') as f:
+#    sentiments = json.load(f)
+print("loaded Data")
     
 #read in dictionary and associated vectors 
-wordsList = np.load('wordslist.npy')
+wordsList = np.load('wordsList.npy')
 wordsList = wordsList.tolist() #convert numpy to list
 wordsList = [word.decode('UTF-8') for word in wordsList]
 wordVectors = np.load('wordVectors.npy')
+ids = np.load('idsMatrix.npy')
 
+#vectorize all of the tweets, takes a very long time to run, no longer needed
+'''
 for tweet in tweets:
     progress(tweetCounter,numTweets)
     wordCounter = 0
@@ -87,7 +127,35 @@ for tweet in tweets:
         if wordCounter >= maxTweetLength:
             break
     tweetCounter += 1
+np.save('idsMatrix', ids)'''
+  
+tf.reset_default_graph()
 
-np.save('idsMatrix', ids)
-    
-            
+labels = tf.placeholder(tf.float32, [batchSize, numClasses])
+input_data = tf.placeholder(tf.int32, [batchSize, maxTweetLength])
+
+data = tf.Variable(tf.zeros([batchSize, maxTweetLength, numDimensions]),
+                            dtype=tf.float32)
+data = tf.nn.embedding_lookup(wordVectors,input_data)
+
+lstmCell = tf.contrib.rnn.BasicLSTMCell(lstmUnits)
+lstmCell = tf.contrib.rnn.DropoutWrapper(cell=lstmCell, output_keep_prob=0.25)
+value, _ = tf.nn.dynamic_rnn(lstmCell, data, dtype=tf.float32)
+
+weight = tf.Variable(tf.truncated_normal([lstmUnits, numClasses]))
+bias = tf.Variable(tf.constant(0.1, shape=[numClasses]))
+value = tf.transpose(value, [1, 0, 2])
+last = tf.gather(value, int(value.get_shape()[0]) - 1)
+prediction = (tf.matmul(last, weight) + bias)
+
+correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
+accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
+
+loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        logits=prediction, labels=labels))
+optimizer = tf.train.AdamOptimizer().minimize(loss)
+
+#not working
+sess = tf.InteractiveSession()
+saver = tf.train.Saver()
+saver.restore(sess, tf.train.latest_checkpoint('models'))
