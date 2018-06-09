@@ -87,9 +87,9 @@ numTweets = 1600000
 maxTweetLength = 35
 tweetCounter = 0
 batchSize = 24
-lstmUnits = 64
+lstmUnits = 64 #64
 numClasses = 2
-iterations = 100000
+iterations = 1
 numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 
@@ -158,7 +158,34 @@ loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
         logits=prediction, labels=labels))
 optimizer = tf.train.AdamOptimizer().minimize(loss)
 
-#not working
+#tensorboard code
+tf.summary.scalar('Loss',loss)
+tf.summary.scalar('Accuracy', accuracy)
+merged = tf.summary.merge_all()
+logdir = "tensorboard/" + datetime.datetime.now().strftime(
+        "%Y%m%d-%H%M%S") + "/"
+writer = tf.summary.FileWriter(logdir, sess.graph)
+
 sess = tf.InteractiveSession()
 saver = tf.train.Saver()
-saver.restore(sess, tf.train.latest_checkpoint('models'))
+sess.run(tf.global_variables_initializer())
+
+for i in range(iterations):
+    #next batch of tweets
+    nextBatch, nextBatchLabels = getTrainBatch()
+    sess.run(optimizer, {input_data: nextBatch, labels: nextBatchLabels})
+    
+    #write summary to tensorboard
+    if i % 50 == 0:
+        summary = sess.run(merged, {input_data: nextBatch, 
+                                    labels: nextBatchLabels})
+        writer.add_summary(summary,i)
+        
+    #save the network every 44,445 training iterations size of training set
+    if i % 44445 == 0 and i != 0:
+        save_path = saver.save(sess, "models/pretrained_lstm.ckpt",
+                               global_step = i)
+        print("Saved to %s" % save_path)
+writer.close()
+    
+
