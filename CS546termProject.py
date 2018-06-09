@@ -113,6 +113,9 @@ wordsList = [word.decode('UTF-8') for word in wordsList]
 wordVectors = np.load('wordVectors.npy')
 ids = np.load('idsMatrix.npy')
 
+with tf.Session() as sess:
+    print(tf.nn.embedding_lookup(wordVectors,ids[0]).eval().shape)
+
 #vectorize all of the tweets, takes a very long time to run, no longer needed
 '''
 for tweet in tweets:
