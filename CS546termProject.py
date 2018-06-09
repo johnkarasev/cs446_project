@@ -89,7 +89,7 @@ tweetCounter = 0
 batchSize = 24
 lstmUnits = 64 #64
 numClasses = 2
-iterations = 1
+iterations = 44445
 numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 
@@ -170,7 +170,9 @@ sess = tf.InteractiveSession()
 saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
 
+#training on tweets
 for i in range(iterations):
+    progress(i,iterations)
     #next batch of tweets
     nextBatch, nextBatchLabels = getTrainBatch()
     sess.run(optimizer, {input_data: nextBatch, labels: nextBatchLabels})
@@ -181,7 +183,7 @@ for i in range(iterations):
                                     labels: nextBatchLabels})
         writer.add_summary(summary,i)
         
-    #save the network every 44,445 training iterations size of training set
+    #save the network every 44,445 training iterations size of the training set
     if i % 44445 == 0 and i != 0:
         save_path = saver.save(sess, "models/pretrained_lstm.ckpt",
                                global_step = i)
