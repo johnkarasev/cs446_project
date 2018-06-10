@@ -86,10 +86,10 @@ def getTestBatch():
 numTweets = 1600000
 maxTweetLength = 35
 tweetCounter = 0
-batchSize = 24
-lstmUnits = 64 #64
+batchSize = 100
+lstmUnits = 64
 numClasses = 2
-iterations = 44445 #full batch = 44445
+iterations = int(((8*numTweets)/3)/batchSize) #full batch = 44445
 numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 
@@ -171,29 +171,29 @@ saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
 
 #Uncomment to load model   
-sess = tf.InteractiveSession()
-saver = tf.train.Saver()
-saver.restore(sess, tf.train.latest_checkpoint('models'))
+#sess = tf.InteractiveSession()
+#saver = tf.train.Saver()
+#saver.restore(sess, tf.train.latest_checkpoint('models'))
 
 #training on tweets
-#for i in range(iterations):
-#    progress(i,iterations)
-#    #next batch of tweets
-#    nextBatch, nextBatchLabels = getTrainBatch()
-#    sess.run(optimizer, {input_data: nextBatch, labels: nextBatchLabels})
-#    
-#    #write summary to tensorboard every 50 batches
-#    if i % 50 == 0:
-#        summary = sess.run(merged, {input_data: nextBatch, 
-#                                    labels: nextBatchLabels})
-#        writer.add_summary(summary,i)
-#        
-#    #save the network every 44,445 training iterations size of the training set
-#    if i % 44445 == 0 and i != 0:
-#        save_path = saver.save(sess, "models/pretrained_lstm.ckpt",
-#                               global_step = i)
-#        print("Saved to %s" % save_path)
-#writer.close()
+for i in range(iterations):
+    progress(i,iterations)
+    #next batch of tweets
+    nextBatch, nextBatchLabels = getTrainBatch()
+    sess.run(optimizer, {input_data: nextBatch, labels: nextBatchLabels})
+    
+    #write summary to tensorboard every 50 batches
+    if i % 50 == 0:
+        summary = sess.run(merged, {input_data: nextBatch, 
+                                    labels: nextBatchLabels})
+        writer.add_summary(summary,i)
+        
+    #save the network every 44,445 training iterations size of the training set
+    if i % (iterations - 1) == 0 and i != 0:
+        save_path = saver.save(sess, "models/pretrained_lstm.ckpt",
+                               global_step = i)
+        print("Saved to %s" % save_path)
+writer.close()
 
 iterations = 10
 for i in range(iterations):
