@@ -89,7 +89,8 @@ tweetCounter = 0
 batchSize = 100
 lstmUnits = 64
 numClasses = 2
-iterations = int(((8*numTweets)/3)/batchSize) #full batch = 44445
+epochs = 4
+iterations = int(((epochs*2*numTweets)/3)/batchSize) #full batch = 44445
 numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 
