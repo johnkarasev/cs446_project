@@ -164,11 +164,14 @@ with tf.Session() as sess:
 
 tf.reset_default_graph()
 
+# Create placeholder tensors
 labels = tf.placeholder(tf.float32, [batchSize, numClasses])
 input_data = tf.placeholder(tf.int32, [batchSize, maxTweetLength])
 
-data = tf.Variable(tf.zeros([batchSize, maxTweetLength, numDimensions]),
-                            dtype=tf.float32)
+# Create tensor for ....BUG
+data = tf.Variable(tf.zeros([batchSize, maxTweetLength, numDimensions]), dtype=tf.float32)
+
+# Grab vectors associated with our input data. Similar to the concept of word embeddings.
 data = tf.nn.embedding_lookup(wordVectors,input_data)
 
 lstmCell = tf.contrib.rnn.BasicLSTMCell(lstmUnits)
