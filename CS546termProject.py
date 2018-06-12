@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  2 12:51:26 2018
 
-@author: brent
-"""
+
+# Authors: Brent McManus, John Karasev, Donovan Ellison, Long Le, Trevor Leake
+#
+# Description: Makes long/short-term recursive neural network and trains the
+#   model to label tweets as having positive or negative sentiments based on
+#   vocabulary and word ordering.
+#
+# Data source:      https://www.kaggle.com/kazanova/sentiment140
+# Modelled after:   https://www.oreilly.com/learning/perform-sentiment-analysis-with-lstms-using-tensorflow
+
+
+
+# Libraries used
+# The only non-standard Python library required is tensorflow.
 import numpy as np
 import tensorflow as tf
 from random import randint
@@ -13,20 +23,24 @@ import csv
 import re
 import json
 import sys
+from os.path import isfile
 
-def filter_func(string):
-    if string is None or string[0] == '@' or string[0] == '#':
-        return False
-    else:
-        return True
-    
+
+
+# Takes a tweet's text as string. Returns list of words dropping hashtags, mentions and special characters.
 def preprocess_tweet(string):
+    # First we'll strip special characters out using regex
     strip_special_chars = re.compile("[^A-Za-z0-9#@ ]+")
     string = string.lower().replace("<br />", " ")
     string = re.sub(strip_special_chars, "", string.lower())
     string = string.split()
-    return list(filter(filter_func,string))
 
+    # Used to filter out user mentions and hashtags common in tweets.
+    mention_and_haghtag_filter = lambda string: string is not None and string[0] != '#' and string[0] != '@'
+    return list(filter(filter_func, string))
+
+
+# Takes filepath to our csv of labelled tweets. Returns list of processed tweets and list of sentiments.
 def read_preprocess(file):
     with open(file, encoding = 'latin1') as csvfile:
         tweets = []
@@ -40,13 +54,16 @@ def read_preprocess(file):
                 sentiments.append(1)
         return tweets, sentiments
 
+
+# Used for saving our tweets and sentiments after being processed.
 def save(tweets,filename1,sentiments,filename2):
     with open(filename1, 'w') as of:
         json.dump(tweets, of)
     with open(filename2, 'w') as of:
         json.dump(sentiments, of)
-  
-#neat functionality but very slow progress bar      
+
+
+# Multi-purpose progress bar / equals-symbol breeder / reminder that you're doing something useful (DONT CLOSE THE TERMINAL)
 def progress(count, total, suffix=''):
     bar_len = 60
     filled_len = int(round(bar_len * count / float(total)))
@@ -57,11 +74,13 @@ def progress(count, total, suffix=''):
     if count == total:
         print("")
 
+
+# Reads globally set parameters: batchSize, maxTweetLength, and ids. Returns array of selected ids and their labels (?) BUG
 def getTrainBatch():
     labels = []
     arr = np.zeros([batchSize, maxTweetLength])
     for i in range(batchSize):
-        if (i % 2 == 0): 
+        if (i % 2 == 0):
             num = randint(1,533333)
             labels.append([1,0])
         else:
@@ -70,6 +89,8 @@ def getTrainBatch():
         arr[i] = ids[num-1:num]
     return arr, labels
 
+
+# Reads globally set parameters: batchSize, maxTweetLength, and ids. Returns array of selected ids and their labels (?) BUG
 def getTestBatch():
     labels = []
     arr = np.zeros([batchSize, maxTweetLength])
@@ -81,8 +102,9 @@ def getTestBatch():
             labels.append([0,1])
         arr[i] = ids[num-1:num]
     return arr, labels
-    
-#program Variables
+
+
+# Program parameters
 numTweets = 1600000
 maxTweetLength = 35
 tweetCounter = 0
@@ -94,45 +116,52 @@ iterations = int(((epochs*2*numTweets)/3)/batchSize) #full batch = 44445
 numDimensions = 300
 ids = np.zeros((numTweets,maxTweetLength), dtype = 'int32')
 
-#intial reading and preprocessing
-#tweets,sentiments = read_preprocess('training.1600000.processed.noemoticon.csv')
-#save(tweets,"tweets.json",sentiments,"sentiments.json") 
 
-#reading in once preprocessed once
-tweets = []
-#sentiments = []
-with open('tweets.json') as f:
-    tweets = json.load(f)
-#with open('sentiments.json') as f:
-#    sentiments = json.load(f)
-print("loaded Data")
-    
-#read in dictionary and associated vectors 
+# If tweets haven't been processed and saved
+if not isfile('tweets.json'):
+    tweets, sentiments = read_preprocess('training.1600000.processed.noemoticon.csv')
+    print("Data processed")
+    save(tweets, "tweets.json", sentiments, "sentiments.json")
+    print("Data saved to \"./sentiments.json\"")
+
+# If processed tweets are already saved
+else:
+    with open('tweets.json') as f:
+        tweets = json.load(f)
+    with open('sentiments.json') as f:
+        sentiments = json.load(f)
+    print("Loaded data")
+
+
+# Read in dictionary and associated vectors
 wordsList = np.load('wordsList.npy')
 wordsList = wordsList.tolist() #convert numpy to list
 wordsList = [word.decode('UTF-8') for word in wordsList]
 wordVectors = np.load('wordVectors.npy')
-ids = np.load('idsMatrix.npy')
+
+
+# Vectorize all of the tweets, takes a very long time to run. However it loads saved data when possible.
+if isfile('idsMatrix.npy'):
+    ids = np.load('idsMatrix.npy')
+else
+    for tweet in tweets:
+        progress(tweetCounter,numTweets)
+        wordCounter = 0
+        for word in tweet:
+            try:
+                ids[tweetCounter][wordCounter] = wordsList.index(word)
+            except:
+                ids[tweetCounter][wordCounter] = 399999 #vector for unknown words
+            wordCounter += 1
+            if wordCounter >= maxTweetLength:
+                break
+        tweetCounter += 1
+    np.save('idsMatrix', ids)
+
 
 with tf.Session() as sess:
     print(tf.nn.embedding_lookup(wordVectors,ids[0]).eval().shape)
 
-#vectorize all of the tweets, takes a very long time to run, no longer needed
-'''
-for tweet in tweets:
-    progress(tweetCounter,numTweets)
-    wordCounter = 0
-    for word in tweet:
-        try:
-            ids[tweetCounter][wordCounter] = wordsList.index(word)
-        except:
-            ids[tweetCounter][wordCounter] = 399999 #vector for unknown words
-        wordCounter += 1
-        if wordCounter >= maxTweetLength:
-            break
-    tweetCounter += 1
-np.save('idsMatrix', ids)'''
-  
 tf.reset_default_graph()
 
 labels = tf.placeholder(tf.float32, [batchSize, numClasses])
@@ -171,7 +200,7 @@ sess = tf.InteractiveSession()
 saver = tf.train.Saver()
 sess.run(tf.global_variables_initializer())
 
-#Uncomment to load model   
+# Uncomment to load model instead of training anew
 #sess = tf.InteractiveSession()
 #saver = tf.train.Saver()
 #saver.restore(sess, tf.train.latest_checkpoint('models'))
@@ -182,13 +211,13 @@ for i in range(iterations):
     #next batch of tweets
     nextBatch, nextBatchLabels = getTrainBatch()
     sess.run(optimizer, {input_data: nextBatch, labels: nextBatchLabels})
-    
+
     #write summary to tensorboard every 50 batches
     if i % 50 == 0:
-        summary = sess.run(merged, {input_data: nextBatch, 
+        summary = sess.run(merged, {input_data: nextBatch,
                                     labels: nextBatchLabels})
         writer.add_summary(summary,i)
-        
+
     #save the network every 44,445 training iterations size of the training set
     if i % (iterations - 1) == 0 and i != 0:
         save_path = saver.save(sess, "models/pretrained_lstm.ckpt",
@@ -201,4 +230,3 @@ for i in range(iterations):
     nextBatch, nextBatchLabels = getTestBatch()
     print("Accuracy for this batch:", (sess.run(accuracy, {
             input_data: nextBatch, labels: nextBatchLabels}))*100)
-
